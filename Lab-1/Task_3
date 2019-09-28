@@ -1,0 +1,43 @@
+using System;
+using System.Diagnostics;
+using System.Threading;
+
+namespace MultiThreading
+{
+    public class MyThreads
+    {
+        public static void thread1()
+        {
+            int nSteps = 100000;
+            double steps;
+            double x;
+            double pi;
+            double sum = 0.0;
+            steps = 1 / (double)nSteps;
+            for (int i = 0; i < nSteps; i++)
+            {
+                x = (i + 0.5) * steps;
+                sum = sum + 4.0 / (1 + x * x);
+            }
+            pi = steps * sum;
+            Console.Write("Pi ");
+            Console.Write(pi);
+            Console.Write("\n");
+        }
+    }
+    class program
+    {
+
+        static void Main(string[] args)
+        {
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+            Thread td1 = new Thread(new ThreadStart(MyThreads.thread1));
+            td1.Start();
+            td1.Join();
+            //Thread.Sleep(20);
+            stopWatch.Stop();
+            Console.WriteLine("It took " + stopWatch.ElapsedMilliseconds + " to run.");
+        }
+    }
+}
