@@ -1,0 +1,125 @@
+Lab 3: MapReduce
+
+Introduction
+MapReduce allows for relatively fast and easy processing over very large datasets using a cluster of commodity machines.  In this assignment we will become more familiar with the MapReduce paradigm and the open source Java implementation, Hadoop.  This document will walk students through the process of setting up and executing a MapReduce task over the NetFlix Prize dataset on a single node.  Finally, the student will be given the task of implementing their own MapReduce job and analyzing the execution thereof.
+Objectives
+•	Understanding the NetFlix Prize dataset
+•	MapReduce code example
+•	Compiling and executing a MapReduce Task
+Tools/Software Requirement
+As you desire
+Description
+1.	 MapReduce: Simplified Data Processing on Large Clusters http://labs.google.com/papers/mapreduce.html
+2.	Important Concepts http://wiki.apache.org/lucene-hadoop/ImportantConcepts
+3.	Hadooop MapReduce Implementation http://wiki.apache.org/lucene-hadoop/HadoopMapReduce
+4.	Hadoop command line options http://wiki.apache.org/lucene-hadoop/DevelopmentCommandLineOptions
+5.	Hadoop  Job Partitioning http://wiki.apache.org/lucene-hadoop/HowManyMapsAndReduces (would be more pertinent to the project)
+6.	Hadoop Debugging: http://wiki.apache.org/lucene-hadoop/HowToDebugMapReducePrograms
+7.	Hadoop APIs http://lucene.apache.org/hadoop/api/index.html
+
+
+Lab Tasks
+This section of the document details the NetFlix Prize dataset and presents an example MapReduce task to calculate the average movie rating per user in the dataset.
+
+
+
+3.1 Dataset
+Before any MapReduce tasks we will need to understand understand the formatting of the dataset as well as load it on the image.  The formatting of the Netflix Prize dataset is described in it’s accompanying README.  The description is as follows:
+ 
+The file "training_set.tar" is a tar of a directory containing 17770 files, one per movie.  The first line of each file contains the movie id followed by a colon.  Each subsequent line in the file corresponds to a rating from a customer and its date in the following format:
+
+CustomerID,Rating,Date
+
+- MovieIDs range from 1 to 17770 sequentially.
+- CustomerIDs range from 1 to 2649429, with gaps. There are 480189 users.
+- Ratings are on a five star (integral) scale from 1 to 5.
+- Dates have the format YYYY-MM-DD.
+
+For our purposes we only use the Customer ID and Rating.  The customer ID will be used to identify unique ratings and the rating is the element of the dataset we will be aggregating via Map and Reduce tasks.
+
+Your instructor will give directions on where to access the (potentially truncated or aggregated) dataset. https://archive.org/download/nf_prize_dataset.tar
+
+If the dataset has been aggregated, then the movie ratings will not be in one file per movie.  MovieIDs are still present in the data file and each rating following a <MovieID>: line are the ratings for that movie:
+
+...
+1447274,5,2005-11-15
+709867,4,2005-12-22
+33:
+1623180,5,2005-07-11
+282486,3,2005-07-12
+1987434,4,2005-07-13
+1447783,5,2004-06-25
+2616301,5,2005-07-22
+...
+
+
+3.2 Average User Rating
+
+We will be using Hadoop’s implementation of MapReduce to find the average of each user’s movie ratings in the dataset.
+
+For the average value of a user rating two elements must be captured per user rating, the rating value and the sum of the ratings.  This is not as straightforward as it may seem.  Because the map task will be working in parallel on separate chunks of the ratings document and will have no higher level knowledge of which ratings and users have been emitted the simplest possible emit must be chosen that will still allow the reducer to aggregate the sum of the ratings.  In order to accomplish this, for every rating there will be an emit for the UserID consisting of a two element list which contains the rating and the sum of the rating.  Because the map task works independently with each rating the sum will always be emitted as a 1.
+
+High level emit:
+CSV Data file line -> <UserID, <rating value, rating sum>>
+
+Input:
+33:
+1623180,5,2005-07-11
+282486,3,2005-07-12
+1987434,4,2005-07-13
+
+Emit:
+<1623180, <5, 1>>
+<282486, <3, 1>>
+<1987434, <4, 1>>
+
+The Reduce task then encompasses the function which iterates over the <rating value, rating sum> list for each user and aggregates the rating and sum.  The final operation of the reduce task is to calculate the average rating using the aggregated sum and rating values and emit the average rating for the user.
+
+High level emit:
+<UserID, <rating value/sum list>> -> <user, average rating>
+
+Input:
+<1623180, <<5, 1>, <4, 1>, <1, 1>, <4, 1>, ... >
+
+Emit:
+<1623180, 3.5>
+
+3.3 Average Rating MapReduce Example
+
+Download the provided example files: AverageValueReducer.java, IntArrayWritable.java, HadoopDriver.java, and UserRatingMapper.java.  These files implement the Average User Rating map and reduce.
+
+3.4 Compiling and Executing
+
+Compiling
+Hadoop requires that MapReduce code is packaged in a jar file to be executed via the hadoop command.  To create a jar file from the provided source files, execute the following commands (note that compilation will require that the Hadoop libraries (home/akeen/public/hadoop/hadoop-0.17.2.1/hadoop-0.17.2.1-core.jar) be in your CLASSPATH). 
+1.	javac AverageValueReducer.java IntArrayWritable.java HadoopDriver.java UserRatingMapper.java
+2.	jar cvf example.jar AverageValueReducer.class IntArrayWritable.class HadoopDriver.class UserRatingMapper.class
+
+Executing
+To execute a MapReduce task hadoop must be given the job .jar file, the driver class, and any arguments required by that task.  To run the average rating MapReduce task described by the previous code which has been compiled into a example.jar with a driver class located in HadoopDriver within that jar we would issue the command (/home/akeen/public/hadoop/hadoop-0.17.2.1/bin/hadoop on our machines):
+
+1.	hadoop jar example.jar HadoopDriver input output
+The input and output arguments are used by the HadoopDriver class to specify the input directory and the output directory.  The input directory must contain the dataset (use /home/akeen/public/hadoop/input for this lab) and the output directory will, after completion, contain the average ratings per user.
+
+
+4	Ratings per Date
+
+This section of the document requires that you use the knowledge gained in the previous sections to implement and execute your own MapReduce job.
+
+Each rating in the dataset is accompanied by the date on which it was submitted.  Your task is to create the MapReduce methods that count the number of times a rating was submitted for a specific date.  The following provides a snippet example of what the input and output files will look like.
+
+Input:
+...
+33:
+1623180,5,2005-07-11
+282486,3,2005-07-12
+1987434,4,2005-07-13
+34:
+1623180,2,2005-07-11
+...
+
+Output:
+...
+2005-07-11	2
+2005-07-12	1
+2005-07-13	1
